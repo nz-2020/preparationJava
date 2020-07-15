@@ -1,0 +1,61 @@
+    @RequestMapping(value = "preparationStart", method = RequestMethod.POST)
+    public void preparationCre(@RequestParam("data") int data) {
+    
+        Boolean status = false;
+        Boolean emtData = false;
+        List<Product> products = new ArrayList<Product>();
+        final List<PreparationInfo> preparationInfo = new ArrayList<>();
+         List<ReportPreInfo> reportPreInfo = new ArrayList<>();
+        try {
+               Boolean tskCreate = false;
+                reportPreparationService.clearPreparationData();
+                products = reportPreparationService.getPreparationProduct(data);
+                List<List<Product>> ProductGroup = new ArrayList<>();
+                if (products.isEmpty()) {
+                    emtData = true;
+                }
+                if (products.size() > 500) {
+                    ProductGroup = partition(products, products.size() / (products.size() / 500)).stream().collect(toList());
+                } else if (products.size() > 100) {
+                    ProductGroup = partition(products, products.size() / (products.size() / 100)).stream().collect(toList());
+                } else {
+                    ProductGroup.add(products);
+                }
+
+                for (List<Product> list : ProductGroup) {
+                    Thread thread = new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            preparationInfo.add(reportPreparationService.addPrepalist(list, data));
+                        }
+                    });
+                    thread.start();
+                    thread.join();
+                     }
+                if (preparationInfo.get(0).getStatus() == 1) {
+                    status = true;
+                } else if (preparationInfo.get(0).getStatus() == 2) {
+                    status = false;
+                }
+                  if (tskCreate) {
+                    Boolean tskCreate = preparationReportService.getBalance();
+                    if (tskCreate) {
+                        status = true;
+                        preparationInfo.get(0).setMassage("done");
+                    } else {
+                        preparationInfo.get(0).setMassage("error");
+                    }
+                }
+                if (emtData) {
+                    status = true;
+                    preparationInfo.get(0).setMassage("product empty");
+                }
+            }
+           
+        } catch (Exception e) {
+            e.printStackTrace();
+          
+        }
+      
+
+    }
